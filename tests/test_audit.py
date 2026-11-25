@@ -92,6 +92,19 @@ class TestSanitize:
             "provider": "anthropic",
         }
 
+    def test_keeps_token_counts_but_redacts_tokens(self):
+        data = {
+            "usage": {"input_tokens": 120, "output_tokens": 30, "total_tokens": 150},
+            "access_token": "abc",
+            "token": "def",
+        }
+
+        assert sanitize(data) == {
+            "usage": {"input_tokens": 120, "output_tokens": 30, "total_tokens": 150},
+            "access_token": REDACTED,
+            "token": REDACTED,
+        }
+
     def test_converts_dataclasses_dates_and_paths(self):
         @dataclass
         class Item:

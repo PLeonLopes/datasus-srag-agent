@@ -27,7 +27,8 @@ except ImportError:  # Windows: só a trava entre threads
 GENESIS_HASH = "0" * 64
 REDACTED = "[REDACTED]"
 STATUSES = frozenset({"ok", "degraded", "blocked", "error"})
-_SECRET_KEY = re.compile(r"(api_?key|token|secret|password|senha|authorization)", re.IGNORECASE)
+# "token" só no fim do nome (access_token, HF_TOKEN): contagens como input_tokens não são segredo.
+_SECRET_KEY = re.compile(r"api_?key|secret|password|senha|authorization|(^|_)token$", re.IGNORECASE)
 _MAX_STRING_CHARS = 20_000
 
 
