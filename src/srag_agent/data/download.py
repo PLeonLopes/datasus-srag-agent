@@ -61,6 +61,15 @@ class DownloadedFile:
     downloaded_at: str
 
 
+def parse_snapshot_filename(filename: str) -> tuple[int, date] | None:
+    """(ano dos dados, data do snapshot) de um nome como INFLUD25-23-11-2026.parquet."""
+    match = _FILE_PATTERN.search(filename)
+    if match is None:
+        return None
+    snapshot = date(int(match["year"]), int(match["month"]), int(match["day"]))
+    return 2000 + int(match["yy"]), snapshot
+
+
 def parse_remote_file(url: str) -> RemoteFile:
     """Valida a URL contra a allowlist e extrai o ano dos dados e a data do snapshot."""
     parsed = urlparse(url)
@@ -70,11 +79,11 @@ def parse_remote_file(url: str) -> RemoteFile:
         or not parsed.path.startswith(ALLOWED_PATH_PREFIX)
     ):
         raise DownloadError(f"URL fora da allowlist: {url}")
-    match = _FILE_PATTERN.search(parsed.path)
-    if match is None:
+    parsed_name = parse_snapshot_filename(parsed.path)
+    if parsed_name is None:
         raise DownloadError(f"Nome de arquivo inesperado: {url}")
-    snapshot = date(int(match["year"]), int(match["month"]), int(match["day"]))
-    return RemoteFile(url=url, data_year=2000 + int(match["yy"]), snapshot_date=snapshot)
+    data_year, snapshot = parsed_name
+    return RemoteFile(url=url, data_year=data_year, snapshot_date=snapshot)
 
 
 class _LinkCollector(HTMLParser):
@@ -135,7 +144,7 @@ def download_file(
 
     if target.exists() and not force:
         logger.info("Já existe, mantendo: %s", target.name)
-        digest, size = _hash_file(target)
+        digest, size = file_sha256(target)
         return _describe(remote, digest, size)
 
     partial = target.with_name(target.name + ".part")
@@ -225,7 +234,7 @@ def _valid_files(links: Iterable[str]) -> list[RemoteFile]:
     return list(dict.fromkeys(files))
 
 
-def _hash_file(path: Path) -> tuple[str, int]:
+def file_sha256(path: Path) -> tuple[str, int]:
     hasher = hashlib.sha256()
     with path.open("rb") as file:
         for chunk in iter(lambda: file.read(_CHUNK_SIZE), b""):
