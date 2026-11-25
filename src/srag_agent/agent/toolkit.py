@@ -31,7 +31,7 @@ class Evidence:
         """Tudo o que foi entregue ao redator: a fonte dos números permitidos no texto."""
         return {
             "metrics": self.metrics.to_dict() if self.metrics else None,
-            "charts": _charts_payload(self.charts) if self.charts else None,
+            "charts": charts_payload(self.charts) if self.charts else None,
             "sql": self.sql,
             # Sem os links: números dentro de URLs não podem virar números "permitidos" no texto.
             "news": [
@@ -115,8 +115,8 @@ class RunToolkit:
     def _charts(self) -> tuple[str, bool]:
         if self.evidence.charts is None:
             self.evidence.charts = generate_charts(self.connection, self.out_dir)
-            self.audit.record("tool.gerar_graficos", result=_charts_payload(self.evidence.charts))
-        return _json(_charts_payload(self.evidence.charts)), True
+            self.audit.record("tool.gerar_graficos", result=charts_payload(self.evidence.charts))
+        return _json(charts_payload(self.evidence.charts)), True
 
     def _news(self) -> tuple[str, bool]:
         if self.evidence.news is None:
@@ -149,7 +149,7 @@ def _sql_signature(toolkit: RunToolkit):
     return consultar_sql
 
 
-def _charts_payload(charts: ChartsResult) -> dict:
+def charts_payload(charts: ChartsResult) -> dict:
     return {
         "casos_diarios": charts.daily_cases,
         "casos_mensais": charts.monthly_cases,
