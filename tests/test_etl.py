@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 from datetime import date
 
 import pandas as pd
@@ -6,13 +7,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
-from srag_agent.data.etl import (
-    EtlError,
-    build_database,
-    read_load_metadata,
-    select_source_files,
-    transform,
-)
+from srag_agent.data.database import connect_readonly, read_load_metadata
+from srag_agent.data.etl import EtlError, build_database, select_source_files, transform
 from srag_agent.data.schema import CASES_COLUMNS, CASES_TABLE, SOURCE_COLUMNS
 from srag_agent.data.synthetic import DECOY_COLUMN, generate_snapshots
 
@@ -138,9 +134,9 @@ class TestBuildDatabase:
 
         summary = build_database(synthetic_dir, db_path)
 
-        with sqlite3.connect(db_path) as connection:
+        with closing(connect_readonly(db_path)) as connection:
             count = connection.execute(f"SELECT COUNT(*) FROM {CASES_TABLE}").fetchone()[0]  # noqa: S608
-        metadata = read_load_metadata(db_path)
+            metadata = read_load_metadata(connection)
         assert count == summary.rows_loaded == 2_000
         assert metadata["synthetic"] is True
         assert [source["filename"] for source in metadata["sources"]] == [

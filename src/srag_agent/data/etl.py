@@ -153,12 +153,6 @@ def cases_table_ddl() -> str:
     return f"CREATE TABLE {CASES_TABLE} (\n    " + ",\n    ".join(definitions) + "\n)"
 
 
-def read_load_metadata(db_path: Path) -> dict:
-    with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)) as connection:
-        rows = connection.execute(f"SELECT key, value FROM {METADATA_TABLE}").fetchall()  # noqa: S608
-    return {key: json.loads(value) for key, value in rows}
-
-
 def main(argv: Sequence[str] | None = None) -> None:
     settings = get_settings()
     parser = argparse.ArgumentParser(description="Carrega os dados de SRAG no SQLite.")
