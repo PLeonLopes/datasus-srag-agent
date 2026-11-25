@@ -50,6 +50,12 @@ _MEDICAL_ADVICE = re.compile(
         ]
     )
 )
+# Termos que a base não permite medir: o número estaria certo, mas a interpretação, errada.
+_MISLEADING_TERMS = {
+    r"\bcobertura vacina\w*": "'cobertura vacinal' (a base não tem a população; é vacinação entre os casos)",
+    r"\bocupacao (de |dos |das )?(uti|leitos?)\b": "'ocupação de UTI/leitos' (a base não tem leitos)",
+    r"\btaxa de ocupacao\b": "'taxa de ocupação' (a base não tem leitos)",
+}
 _FORECAST = re.compile(
     "|".join(
         [
@@ -128,6 +134,11 @@ def check_explanation(text: str, evidence: object, growth_values: Sequence[float
         violations.append("contém conselho médico ou recomendação individual")
     if _FORECAST.search(normalized):
         violations.append("contém previsão")
+    violations += [
+        f"usa termo enganoso {explanation}"
+        for pattern, explanation in _MISLEADING_TERMS.items()
+        if re.search(pattern, normalized)
+    ]
     if looks_like_injection(text):
         violations.append("contém padrão de instrução ao modelo")
     if len(text.split()) > MAX_WORDS:
