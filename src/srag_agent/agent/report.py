@@ -3,10 +3,13 @@
 Números, tabelas, gráficos e links vêm do código; o LLM só escreve a análise.
 """
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, datetime
 
-from srag_agent.agent.toolkit import Evidence
+from srag_agent.agent.toolkit import Evidence, charts_payload
+from srag_agent.formatting import br_date as _date
+from srag_agent.formatting import integer as _int
+from srag_agent.formatting import percent as _pct
 from srag_agent.tools.charts import DAILY_CHART_FILE, MONTHLY_CHART_FILE, ChartsResult
 from srag_agent.tools.metrics import (
     GROWTH_WINDOW_DAYS,
@@ -22,6 +25,7 @@ from srag_agent.tools.news import NewsResult
 from srag_agent.tools.sql import MIN_GROUP_SIZE
 
 REPORT_FILE = "relatorio.md"
+DATA_FILE = "relatorio.json"  # os mesmos dados do Markdown, estruturados para a interface
 
 
 @dataclass(frozen=True)
@@ -57,6 +61,17 @@ def render_report(context: ReportContext, evidence: Evidence, analysis: Analysis
         _traceability_section(context),
     ]
     return "\n\n".join(section for section in sections if section) + "\n"
+
+
+def report_data(context: ReportContext, evidence: Evidence, analysis: Analysis) -> dict:
+    return {
+        "context": {**asdict(context), "generated_at": context.generated_at.isoformat(timespec="seconds")},
+        "metrics": evidence.metrics.to_dict() if evidence.metrics else None,
+        "charts": charts_payload(evidence.charts) if evidence.charts else None,
+        "sql": evidence.sql,
+        "news": evidence.news.to_dict() if evidence.news else None,
+        "analysis": asdict(analysis),
+    }
 
 
 def fallback_explanation(metrics: MetricsReport) -> str:
@@ -241,18 +256,6 @@ def _direction(growth: GrowthMetric) -> str:
     if growth.value_pct < 0:
         return f"uma queda de {_pct(abs(growth.value_pct))}"
     return "estável (0,0%)"
-
-
-def _pct(value: float | None) -> str:
-    return "sem dados" if value is None else f"{value:.1f}%".replace(".", ",")
-
-
-def _int(value: int) -> str:
-    return f"{value:,}".replace(",", ".")
-
-
-def _date(value: date) -> str:
-    return f"{value:%d/%m/%Y}"
 
 
 def _window(window: Window) -> str:

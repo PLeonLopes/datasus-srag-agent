@@ -199,6 +199,11 @@ def run(
     return downloads
 
 
+def http_client() -> httpx.Client:
+    """Cliente do portal: segue redirects nas páginas; o download em si não segue (ver `download_file`)."""
+    return httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=_TIMEOUT, follow_redirects=True)
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Baixa os dados de SRAG do Open DATASUS.")
     parser.add_argument("--years", type=int, nargs="+", default=default_years(date.today()))
@@ -209,7 +214,7 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=_TIMEOUT, follow_redirects=True) as client:
+    with http_client() as client:
         downloads = run(client, args.dest, args.years, args.url, args.force)
     for item in downloads:
         logger.info("%s  sha256=%s", item.filename, item.sha256)
