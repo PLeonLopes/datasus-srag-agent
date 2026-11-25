@@ -18,7 +18,9 @@ htmlcov/
 !.env.example
 
 # Dados e artefatos locais
-data/raw/
+data/raw/*
+!data/raw/.gitkeep
+data/demo/
 data/*.db
 data/*.db-*
 reports/*
