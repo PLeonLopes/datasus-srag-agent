@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from contextlib import closing
 from datetime import date
@@ -94,6 +95,22 @@ class TestHappyPath:
 
         assert first.report_path != second.report_path
         assert first.report_path.exists() and second.report_path.exists()
+
+    def test_structured_data_matches_report(self, settings):
+        result, _, _ = _run(settings, ALL_REQUIRED, PRONTO, AIMessage(VALID_ANALYSIS))
+
+        data = json.loads((result.report_path.parent / "relatorio.json").read_text(encoding="utf-8"))
+        assert data["analysis"] == {
+            "text": VALID_ANALYSIS,
+            "generated_by_llm": True,
+            "attempts": 1,
+            "fallback_reason": "",
+        }
+        assert data["context"]["run_id"] == result.run_id
+        assert data["metrics"]["reference_date"] == "2026-11-23"
+        assert len(data["charts"]["casos_diarios"]) == 30
+        assert "sk-or-segredo-de-teste" not in json.dumps(data)
+        assert (result.report_path.parent / "relatorio.pdf").read_bytes().startswith(b"%PDF")
 
 
 class TestCodeControls:

@@ -5,6 +5,7 @@ Uso: `uv run python -m srag_agent.agent [--provider openrouter --model google/ge
 
 import argparse
 import hashlib
+import json
 import logging
 from collections.abc import Callable, Sequence
 from contextlib import closing
@@ -17,8 +18,9 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from srag_agent.agent.graph import ReportState, build_graph
+from srag_agent.agent.pdf import PDF_FILE, render_pdf
 from srag_agent.agent.prompts import ORCHESTRATOR_SYSTEM, ORCHESTRATOR_TASK
-from srag_agent.agent.report import REPORT_FILE, ReportContext
+from srag_agent.agent.report import DATA_FILE, REPORT_FILE, ReportContext, report_data
 from srag_agent.agent.toolkit import RunToolkit
 from srag_agent.config import LLMProvider, Settings, get_settings
 from srag_agent.data.database import connect_readonly, read_load_metadata
@@ -107,6 +109,12 @@ def run_report(
     report_path = out_dir / REPORT_FILE
     report_path.write_text(final_state["report_markdown"], encoding="utf-8")
     analysis = final_state["analysis"]
+    data = report_data(context, toolkit.evidence, analysis)
+    (out_dir / DATA_FILE).write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    try:
+        (out_dir / PDF_FILE).write_bytes(render_pdf(data, out_dir))
+    except Exception as error:  # o LLM já foi pago: o PDF é opcional e o .md continua disponível
+        audit.record("report.pdf", "degraded", error=type(error).__name__, message=str(error)[:300])
     audit.record(
         "run.end",
         "ok" if analysis.generated_by_llm else "degraded",
