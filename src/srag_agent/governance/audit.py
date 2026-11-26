@@ -121,8 +121,12 @@ def read_events(path: Path, run_id: str | None = None) -> list[dict]:
     return [event for event in events if run_id is None or event["run_id"] == run_id]
 
 
-def verify_chain(path: Path) -> ChainReport:
-    """Recalcula os hashes e confere a sequência, o encadeamento e o arquivo `.head`."""
+def verify_chain(path: Path, partial: bool = False) -> ChainReport:
+    """Recalcula os hashes e confere a sequência, o encadeamento e o arquivo `.head`.
+
+    `partial=True` verifica um recorte do log (ex.: uma execução exportada): a primeira linha pode apontar
+    para um evento anterior que não está no arquivo, e o `.head` não é exigido.
+    """
     if not path.exists():
         return ChainReport(valid=True, events=0, problems=[])
     problems: list[str] = []
@@ -137,6 +141,8 @@ def verify_chain(path: Path) -> ChainReport:
             except json.JSONDecodeError:
                 problems.append(f"linha {line_number}: JSON inválido")
                 continue
+            if partial and count == 1:
+                prev_hash, expected_seq = entry.get("prev_hash"), entry.get("seq")
             if entry.get("seq") != expected_seq:
                 problems.append(f"linha {line_number}: sequência {entry.get('seq')}, esperada {expected_seq}")
             if entry.get("prev_hash") != prev_hash:
@@ -145,7 +151,7 @@ def verify_chain(path: Path) -> ChainReport:
                 problems.append(f"linha {line_number}: conteúdo alterado (hash não confere)")
             prev_hash, expected_seq = entry.get("hash", ""), (entry.get("seq") or expected_seq) + 1
 
-    head = _read_head(head_path_for(path))
+    head = None if partial else _read_head(head_path_for(path))
     if head is not None and head.get("hash") != prev_hash:
         problems.append("fim do log não confere com o arquivo .head (linhas finais removidas ou alteradas)")
     return ChainReport(valid=not problems, events=count, problems=problems)

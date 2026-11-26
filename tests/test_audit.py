@@ -164,3 +164,34 @@ class TestVerifyChain:
 
     def test_missing_log_is_valid_and_empty(self, tmp_path):
         assert verify_chain(tmp_path / "nao-existe.jsonl").events == 0
+
+
+class TestPartialChain:
+    @pytest.fixture
+    def excerpt(self, log_path, tmp_path) -> Path:
+        audit = AuditLog(log_path, run_id="antes")
+        audit.record("evento")
+        second = AuditLog(log_path, run_id="exportada")
+        for index in range(3):
+            second.record("evento", index=index)
+        path = tmp_path / "recorte.jsonl"
+        lines = log_path.read_text(encoding="utf-8").splitlines()[1:]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return path
+
+    def test_exported_run_is_valid_only_as_partial(self, excerpt):
+        assert not verify_chain(excerpt).valid
+        assert verify_chain(excerpt, partial=True).valid
+
+    def test_partial_still_detects_edited_line(self, excerpt):
+        def edit(lines):
+            entry = json.loads(lines[2])
+            entry["data"]["index"] = 99
+            lines[2] = json.dumps(entry)
+            return lines
+
+        _rewrite_lines(excerpt, edit)
+
+        report = verify_chain(excerpt, partial=True)
+        assert not report.valid
+        assert any("linha 3: conteúdo alterado" in problem for problem in report.problems)
