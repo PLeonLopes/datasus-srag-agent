@@ -64,7 +64,7 @@ selection = st.dataframe(
             "Modelo": run.model or "-",
             "IA": {True: "sim", False: "não", None: "-"}[run.generated_by_llm],
             "LLM": run.llm_calls,
-            "Tokens": run.total_tokens or None,
+            "Tokens": integer(run.total_tokens) if run.total_tokens else "-",
             "Duração (s)": run.duration_s,
             "Execução": run.run_id,
         }
